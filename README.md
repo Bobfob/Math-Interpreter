@@ -14,14 +14,7 @@ git clone "https://github.com/Bobfob/Bobfob-s-math-interpreter.git"
 
 Next, after you have copied the repository, you need to run the file "main.py" using **Python 3.11** or higher and try to type some expressions into terminal.
 
-## New features
-
-1) Variables
-2) Constant variables
-3) Functions
-4) Deletion
-5) Ternary operator
-6) And other (all list you can see in help massage, type .help while running)
+> To enable debug you can type commands **.tokens** and **.tree** with flags **-f** or **-t** (that stands for False and True respectively)
 
 ## Examples
 
