@@ -14,7 +14,14 @@ git clone "https://github.com/Bobfob/Bobfob-s-math-interpreter.git"
 
 Next, after you have copied the repository, you need to run the file "main.py" using **Python 3.11** or higher and try to type some expressions into terminal.
 
-> To enable debug you can type commands **.tokens** and **.tree** with flags **-f** or **-t** (that stands for False and True respectively)
+## New features
+
+1) Variables
+2) Constant variables
+3) Functions
+4) Deletion
+5) Ternary operator
+6) And other (all list you can see in help massage, type .help while running)
 
 ## Examples
 
@@ -25,7 +32,13 @@ Next, after you have copied the repository, you need to run the file "main.py" u
 Example №2:\
 ![example №2](images/image_example2.png)
 
-## Supported functions
+## Supported (reserved) variables
+
+1. **@pi**  - π variable
+2. **@e**   - Euler value
+3. **@tau** - 2π variable
+
+## Supported (reserved) functions
 
 1. **cos** - Calculates cosine with given radians
 2. **sin** - Calculates sine with given radians
