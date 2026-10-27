@@ -1,19 +1,5 @@
-from src.lexer import *
-from src.nodes import *
-
-
-RESERVED_FUNCTIONS = (
-    "cos",   "sin",   "tan",
-    "cot",   "sec",   "csc",
-    "ln",    "log",   "logn",
-    "exp",   "sqrt",  "cbrt",
-    "abs",   "floor", "ceil",
-    "cosh",  "sinh",  "tanh",
-    "coth",  "sech",  "csch",
-    "cos_d", "sin_d", "tan_d",
-    "cot_d", "sec_d", "csc_d",
-    "clamp", "min",   "max",
-)
+from src.tokens   import *
+from src.nodes    import *
 
 
 class _ParserError(Exception): ...
@@ -61,10 +47,15 @@ class Parser:
 
 
     def parse(self) -> ExprBase:
-        return self.parse_statements()
+        expr = self.parse_statement()
+        
+        if self.cur_token is not None:
+            raise _ParserError(f"Unexpected token: '{self.cur_token.value}'")
+            
+        return expr
     
     
-    def parse_statements(self) -> ExprBase:
+    def parse_statement(self) -> ExprBase:
         while self.cur_token != None:
             match self.cur_token.type:
                 case TokenType.Identifier | TokenType.ConstIdentifier:
@@ -73,116 +64,71 @@ class Parser:
                         self.advance()
                         ident = self.parse_expr()
                         
-                        
                         if not isinstance(ident, IdentNode):
                             raise _ParserError("Expected identifier to delete")
                         
-                        
                         return DeleteExpr(ident.ident)
                     
-                    
-                    # Variable reassignment: "IDENT '=' EXPR"
-                    elif self.peek(offset = 1).type == TokenType.Assign:
-                        return self.parse_assignment_expr()
-                    
-                    
-                    # Function declaration/call:
-                    #   - "IDENT '(' ARGS ')' '=' EXPR"
-                    #   - "IDENT '(' ARGS ')'"
-                    elif self.peek(offset = 1).type == TokenType.LParen:
-                        if self.cur_token.type == TokenType.ConstIdentifier:
-                            raise _ParserError("Function cannot be constants")
-                        
-                        
-                        # Parsing function only when '=' sign is in expression
-                        if any([t.type == TokenType.Assign for t in self.tokens_lit]):
-                            return self.parse_func()
-                    
-                    
-                    # Else we just found some identifier in some expression
-                    return self.parse_expr()
-                
+                    # Assignment expression
+                    else:
+                        return self.try_parse_assignment_expr()
                 
                 # Else it's just an expression
                 case _:
-                    return self.parse_expr()
-        
+                    return self.try_parse_assignment_expr()
         
         raise _ParserError("Expected token")
-    
-    
-    def parse_assignment_expr(self) -> ExprBase:
-        # if we have situation like this: "(x + 1) = expr" we have to check the
-        # type of lhs of assignment expression, because it's must be an identifier
-        # and neither of BinaryExpr
-        assign_to = self.parse_expr()
-        
-        
-        if not isinstance(assign_to, IdentNode):
-            raise _ParserError("Expected identifier, but got expression")
-        
-        
-        # overriding variable to string
-        assign_to = assign_to.ident
-        
-        
-        # expecting next token is equals sign
-        self.expected(TokenType.Assign, '=')
-        
-        
-        # catching expression
-        expr = self.parse_expr()
-        
-        
-        return AssignmentExpr(assign_to, expr)
-        
-    
-    def parse_func(self, ) -> ExprBase:
-        name: str = self.eat_expected(TokenType.Identifier, 'identifier').value # type: ignore
-        
-        
-        self.expected(TokenType.LParen, '(')
-        params = self.parse_func_params_or_args(True)
-        self.expected(TokenType.RParen, ')')
-        
-        
-        if self.cur_token is not None and self.cur_token.type == TokenType.Assign:
+
+
+    def try_parse_assignment_expr(self) -> ExprBase:
+        lvalue: ExprBase = self.parse_expr()
+
+        if self.cur_token is not None and self.cur_token.type in (TokenType.Assign, TokenType.AugAssign):
+            op = self.cur_token.value
             self.advance()
-            expr = self.parse_expr()
-            return FuncDeclaration(name, params, expr)
-        
-        
-        raise _ParserError("Invalid function expression")
+            
+            rvalue: ExprBase = self.try_parse_assignment_expr()
+
+            if isinstance(lvalue, FunctionCall):
+                if op != '=':
+                    raise _ParserError("Augmented assignment is not allowed in function declaration")
+                for arg in lvalue.args:
+                    if not isinstance(arg, IdentNode):
+                        raise _ParserError("Expected parameters nor arguments at function declaration")
+                return FuncDeclaration(lvalue.name, lvalue.args, rvalue)
+
+            else:
+                if op == '=':
+                    return AssignmentExpr(lvalue, rvalue)
+                elif op == '+=':
+                    return AssignmentExpr(lvalue, PlusNode(lvalue, rvalue))
+                elif op == '-=':
+                    return AssignmentExpr(lvalue, MinusNode(lvalue, rvalue))
+                elif op == '*=':
+                    return AssignmentExpr(lvalue, MulNode(lvalue, rvalue))
+                elif op == '/=':
+                    return AssignmentExpr(lvalue, DivNode(lvalue, rvalue))
+                elif op == '%=':
+                    return AssignmentExpr(lvalue, ModNode(lvalue, rvalue))
+                elif op == '**=':
+                    return AssignmentExpr(lvalue, PowerNode(lvalue, rvalue))
+                elif op == '&=':
+                    return AssignmentExpr(lvalue, BitwiseAndNode(lvalue, rvalue))
+                elif op == '|=':
+                    return AssignmentExpr(lvalue, BitwiseOrNode(lvalue, rvalue))
+
+        return lvalue
     
     
-    def parse_func_params_or_args(self, is_params: bool) -> list[IdentNode | ExprBase]:
-        params: list[IdentNode | ExprBase] = []
-        
+    def parse_func_params_or_args(self) -> list[ExprBase]:
+        params: list[ExprBase] = []
         
         while self.cur_token != None and self.cur_token.type != TokenType.RParen:
-            if is_params:
-                ident: ExprBase = self.parse_expr()
-                
-                
-                if not isinstance(ident, IdentNode):
-                    raise _ParserError("Expected identifier as parameter")
-                
-                
-                elif ident.ident[0] == '@':
-                    raise _ParserError("Function parameters cannot be constant")
+            expr: ExprBase = self.try_parse_assignment_expr()
+            params.append(expr)
             
-            
-                params.append(ident)
-            
-            
-            else:
-                expr: ExprBase = self.parse_expr()
-                params.append(expr)
-            
-        
             if self.cur_token.type != TokenType.RParen:
                 self.expected(TokenType.Comma, ',')
-        
         
         return params
 
@@ -194,7 +140,6 @@ class Parser:
     def parse_expr_ternary(self) -> ExprBase:
         expr = self.parse_expr_comparison()
         
-        
         if self.cur_token is not None and self.cur_token.value == '?':
             self.advance()
             success_expr = self.parse_expr_ternary()
@@ -204,40 +149,56 @@ class Parser:
             
             return TernaryOpNode(expr, success_expr, failed_expr)
         
-        
         return expr
     
     
     def parse_expr_comparison(self) -> ExprBase:
-        lhs = self.parse_expr_tail()
-        
+        lhs = self.parse_expr_bitwise()
         
         while self.cur_token is not None and self.cur_token.value in ('<', '<=', '>', '>=', '==', '!='):
             match self.cur_token.value:
                 case '<':
                     self.advance()
-                    lhs = LTNode(lhs, self.parse_expr_tail())
+                    lhs = LTNode(lhs, self.parse_expr_bitwise())
                 
                 case '<=':
                     self.advance()
-                    lhs = LTENode(lhs, self.parse_expr_tail())
+                    lhs = LTENode(lhs, self.parse_expr_bitwise())
                 
                 case '==':
                     self.advance()
-                    lhs = EQNode(lhs, self.parse_expr_tail())
+                    lhs = EQNode(lhs, self.parse_expr_bitwise())
                 
                 case '!=':
                     self.advance()
-                    lhs = NEQNode(lhs, self.parse_expr_tail())
+                    lhs = NEQNode(lhs, self.parse_expr_bitwise())
                 
                 case '>':
                     self.advance()
-                    lhs = GTNode(lhs, self.parse_expr_tail())
+                    lhs = GTNode(lhs, self.parse_expr_bitwise())
                 
                 case '>=':
                     self.advance()
-                    lhs = GTENode(lhs, self.parse_expr_tail())
+                    lhs = GTENode(lhs, self.parse_expr_bitwise())
         
+        return lhs
+
+    def parse_expr_bitwise(self) -> ExprBase:
+        lhs = self.parse_expr_tail()
+
+        while self.cur_token is not None and self.cur_token.type == TokenType.BinaryOp and self.cur_token.value in ('&', '|', '^'):
+            match self.cur_token.value:
+                case '&':
+                    self.advance()
+                    lhs = BitwiseAndNode(lhs, self.parse_expr_tail())
+                
+                case '|':
+                    self.advance()
+                    lhs = BitwiseOrNode(lhs, self.parse_expr_tail())
+                
+                case '^':
+                    self.advance()
+                    lhs = BitwiseXorNode(lhs, self.parse_expr_tail())
         
         return lhs
     
@@ -245,40 +206,35 @@ class Parser:
     def parse_expr_tail(self) -> ExprBase:
         lhs = self.parse_term()
 
-        
         while self.cur_token != None and self.cur_token.type == TokenType.BinaryOp and self.cur_token.value in ('+', '-'):
-            if self.cur_token.value == '+':
-                self.advance()
-                lhs = PlusNode(lhs, self.parse_term())
+            match self.cur_token.value:
+                case '+':
+                    self.advance()
+                    lhs = PlusNode(lhs, self.parse_term())
             
-        
-            elif self.cur_token.value == '-':
-                self.advance()
-                lhs = MinusNode(lhs, self.parse_term())
-        
+                case '-':
+                    self.advance()
+                    lhs = MinusNode(lhs, self.parse_term())
         
         return lhs
 
 
     def parse_term(self) -> ExprBase:
         lhs = self.parse_power()
-
         
         while self.cur_token != None and self.cur_token.type == TokenType.BinaryOp and self.cur_token.value in ('*', '/', '%'):
-            if self.cur_token.value == '*':
-                self.advance()
-                lhs = MulNode(lhs, self.parse_power())
-            
-        
-            elif self.cur_token.value == '/':
-                self.advance()
-                lhs = DivNode(lhs, self.parse_power())
-            
-        
-            elif self.cur_token.value == '%':
-                self.advance()
-                lhs = ModNode(lhs, self.parse_power())
-        
+            match self.cur_token.value:
+                case '*':
+                    self.advance()
+                    lhs = MulNode(lhs, self.parse_power())
+                
+                case '/':
+                    self.advance()
+                    lhs = DivNode(lhs, self.parse_power())
+                
+                case '%':
+                    self.advance()
+                    lhs = ModNode(lhs, self.parse_power())
         
         return lhs
 
@@ -286,11 +242,9 @@ class Parser:
     def parse_power(self) -> ExprBase:
         lhs = self.parse_postfix()
 
-        
         while self.cur_token != None and self.cur_token.type == TokenType.BinaryOp and self.cur_token.value == '**':
             self.advance()
             lhs = PowerNode(lhs, self.parse_postfix())
-        
         
         return lhs
     
@@ -298,20 +252,27 @@ class Parser:
     def parse_postfix(self) -> ExprBase:
         lhs = self.parse_primary()
         
-        
-        while self.cur_token != None and self.cur_token.value in ('!', '['):
-            if self.cur_token.value == '!':
-                self.advance()
-                lhs = FactorialNode(lhs)
-            
-            
-            elif self.cur_token.value == '[':
-                self.advance()
-                value: ExprBase = self.parse_expr()
-                self.expected(TokenType.RBracket, ']')
+        while self.cur_token != None and self.cur_token.value in ('!', '[', '::'):
+            match self.cur_token.value:
+                case '!':
+                    self.advance()
+                    lhs = FactorialNode(lhs)
                 
-                lhs = IndexNode(lhs, value)
-        
+                case '[':
+                    self.advance()
+                    value: ExprBase = self.parse_expr()
+                    self.expected(TokenType.RBracket, ']')
+                    
+                    lhs = IndexNode(lhs, value)
+
+                case '::':
+                    self.advance()
+                    node = self.parse_primary()
+
+                    if not isinstance(node, (IdentNode, FunctionCall)):
+                        raise _ParserError("Expected identifier or function call after ::")
+
+                    lhs = AccessNode(lhs, node)
         
         return lhs
     
@@ -319,35 +280,42 @@ class Parser:
     def parse_primary(self) -> ExprBase:
         tok = self.cur_token
 
-        
         if tok == None:
             raise _ParserError('Invalid expression')
-        
+
+        elif tok.type == TokenType.LBrace:
+            self.advance()
+            parsed_hash_table = self.parse_primary_hash_table()
+            self.expected(TokenType.RBrace, '}')
+
+            return parsed_hash_table
+
+        elif tok.type == TokenType.LBracket:
+            self.advance()
+            parsed_array = self.parse_primary_array()
+            self.expected(TokenType.RBracket, ']')
+
+            return parsed_array
         
         elif tok.type == TokenType.LParen:
             self.advance()
-            result = self.parse_expr()
-            
+            result = self.try_parse_assignment_expr()
             
             if self.cur_token is not None and self.cur_token.type == TokenType.Comma:
                 self.advance()
                 
-                
                 if isinstance(result, (Point2DNode, Point3DNode)):
                     raise _ParserError("Point literal cannot contain other point literal")
                 
-                
                 point = [result]
                 
-                
                 while self.cur_token is not None and self.cur_token.type != TokenType.RParen:
-                    expr = self.parse_expr()
+                    expr = self.try_parse_assignment_expr()
                     
                     if isinstance(expr, (Point2DNode, Point3DNode)):
                         raise _ParserError("Point literal cannot contain other point literal")
                     
                     point.append(expr)
-                    
                     
                     if self.cur_token is not None and self.cur_token.type == TokenType.Comma:
                         self.advance()
@@ -355,60 +323,55 @@ class Parser:
                         if self.cur_token is not None and self.cur_token.type == TokenType.Comma:
                             raise _ParserError("Trailing comma in point literal")
                 
-                
                 if len(point) == 2:
                     self.advance()
                     return Point2DNode((point[0], point[1]))
-                
                 
                 elif len(point) == 3:
                     self.advance()
                     return Point3DNode((point[0], point[1], point[2]))
                 
-                
                 raise _ParserError("Expected 2 or 3 values (expressions) for point literal")
-            
             
             self.expected(TokenType.RParen, ')')
             
-            
             return result
-        
-        
+                
         elif tok.type == TokenType.NumberLit:
             self.advance()
-            
-            return NumberNode(tok.value) # type: ignore
+            return NumberNode(tok.value)
 
+        elif tok.type == TokenType.StringLit:
+            self.advance()
+            return StringNode(tok.value)
         
         elif tok.type == TokenType.Identifier or tok.type == TokenType.ConstIdentifier:
-            name: str = tok.value # type: ignore
+            name: str = tok.value
             self.advance()
             
+            if name == "true" and (self.cur_token is None or self.cur_token.type != TokenType.LParen):
+                return BoolNode(True)
+            elif name == "false" and (self.cur_token is None or self.cur_token.type != TokenType.LParen):
+                return BoolNode(False)
             
             if self.cur_token is not None and self.cur_token.type == TokenType.LParen:
                 self.advance()
-                call_args = self.parse_func_params_or_args(False)
+                call_args = self.parse_func_params_or_args()
                 self.expected(TokenType.RParen, ')')
-            
                 
                 return FunctionCall(name, call_args)
             
-            
-            return IdentNode(name) # type: ignore
+            return IdentNode(name)
 
-        
         elif tok.type == TokenType.BinaryOp:
             match tok.value:
                 case '+':
                     self.advance()
                     return UnaryPlusNode(self.parse_primary())
-                
         
                 case '-':
                     self.advance()
                     return UnaryMinusNode(self.parse_primary())
-                
                 
                 case '|':
                     self.advance()
@@ -417,9 +380,50 @@ class Parser:
                     
                     return ModuleExpr(expr)
                 
-                
                 case _:
                     raise _ParserError(f"Unexpected operator '{tok.value}'")
         
-        
         raise _ParserError("Invalid expression")
+
+
+    def parse_primary_array(self) -> ArrayNode:
+        result: list[ExprBase] = []
+
+        while self.cur_token is not None and self.cur_token.type != TokenType.RBracket:
+            result.append(self.parse_primary())
+
+            if self.cur_token is not None and self.cur_token.type != TokenType.RBracket:
+                self.expected(TokenType.Comma, ',')
+
+        return ArrayNode(result)
+
+
+    def parse_primary_hash_table(self) -> HashTableNode:
+        fields: list[HashTableFieldNode] = []
+        seen_keys: set[str] = set()
+
+        while self.cur_token is not None and self.cur_token.type != TokenType.RBrace:
+            field = self.parse_primary_hash_table_field()
+
+            key_repr = str(field.key)
+            if key_repr in seen_keys:
+                raise _ParserError(f"Key ({field.key}) is duplicated")
+            seen_keys.add(key_repr)
+
+            fields.append(field)
+
+            if self.cur_token is not None and self.cur_token.type != TokenType.RBrace:
+                self.expected(TokenType.Comma, ',')
+
+            elif self.cur_token is None:
+                raise _ParserError("Expected '}'")
+
+        return HashTableNode(fields)
+
+
+    def parse_primary_hash_table_field(self) -> HashTableFieldNode:
+        key = self.parse_primary()
+        self.expected(TokenType.Colon, ":")
+        value = self.parse_expr()
+
+        return HashTableFieldNode(key, value)

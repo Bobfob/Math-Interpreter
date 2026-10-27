@@ -1,21 +1,27 @@
-from subprocess      import call
-from os              import name, system
-from sys             import version_info
+import os
+import sys
 
-from src.lexer       import Lexer
+from typing     import Any
+from subprocess import call
+from traceback  import format_exc
+
+from src.scanner     import Scanner
 from src.calc_parser import Parser
 from src.interpreter import Interpreter
+from src.datatypes   import Number
 
 
 PRINT_TOKENS: bool = False
 PRINT_AST: bool = False
+PRINT_EXCEPTIONS: bool = False
 
-HELP_MASSAGE: str = """
+LAST_ERROR: str = ""
+
+HELP_MESSAGE: str = """
 Predefined constants:
-
-pi - PI value
-e - E value
-tau - 2*PI
+@pi  - π value
+@e   - Euler value
+@tau - 2π
 
 What you can do:
 
@@ -23,245 +29,314 @@ What you can do:
 
 2) Create variables in two modes (mutable and immutable (constants))
     2.1) Mutable variables example: a = 90
-    2.2) Immutable variables example: @another_pi = 14 (P.S. '@' must be part of the identifier. It's not an operator)
+    2.2) Immutable variables example: @another_pi = 14
+         (P.S. '@' must be part of the identifier. It's not an operator)
 
 3) Create functions
     For example functions:
     // Square function
     sqr(x) = x * x
-    
+
     // Squared magnitude of a third dimensional vector
-    vec3_len_sqr(x, y) = sqr(x) + sqr(y)
-    
+    vec3_len_sqr(x, y, z) = sqr(x) + sqr(y) + sqr(z)
+
     // Magnitude of a third dimensional vector
-    vec3_len(x, y) = sqrt(vec3_len_sqr(x, y))
-    
+    vec3_len(x, y, z) = sqrt(vec3_len_sqr(x, y, z))
+
     // Storing result into variable
-    m_vec3_length = vec3_len(1, 1)
-    Output: 1.414...
+    m_vec3_length = vec3_len(1, 1, 1)
+    Output: 1.732...
+
+    // Functions have local scoping
+    f(x) = (x = x + 1) 
 
 4) Delete variables and functions
     @m_pi = 3.14
     del @m_pi
-    
+
     f(x) = x**2
     del f
 
 5) Create points in 2D or 3D
     p0_2D = (0, 1)
     p0_3D = (0, 1, 0)
-    
+
     p1_2D = (1, 0)
     p1_3D = (1, 0, -1)
-    
+
     p0_2D + p1_2D
     Output: (1, 1)
-    
-    p0_3D == p1_3D
-    Output: False
 
-  5.1) Indexing this points:
+    p0_3D == p1_3D
+    Output: false
+
+  5.1) Indexing and attribute assignment:
       p0_2D[0]
       Output: 0
+
+      p0_2D::x = 5
+      // Updates the X coordinate of the point directly
 
 6) Using of ternary operator
     my_value  = -0.2
     min_bound = 2
     max_bound = 4
-    r_max = (my_value > a) ? my_value : a
-    r_min = (r_max < b) ? r_max : b
+    r_max = (my_value > min_bound) ? my_value : min_bound
+    r_min = (r_max < max_bound) ? r_max : min_bound
     Output: 2
 
-Commands for curios people:
+7) Using of "::" operator (Accessing fields and methods)
+    p0_2D = (1, 2)
+    p1_2D = (3, 4)
+    p0_2D::dist(p1_2D)
+    Output: 2.828...
 
-.tokens [-f / -t] - Toggles or sets tokens flag (shows scanned tokens)
-.tree [-f / -t] - Toggles or sets tree flag (shows parsed AST in human readable form)
-.debug [-f / -t] - Toggles or sets tokens and tree flags
-.defines - Shows defined identifiers and functions combined
-.idents - Shows defined identifiers (variables)
-.funcs - Shows defined functions
-.clr - Clears terminal
-.q - Closes program
-.help - Shows help massage
+8) Strings
+    s = "Hello, " + "World"
+    s::upper()
+    Output: HELLO, WORLD
+
+    s::split(", ")
+    Output: ["Hello", "World"]
+    
+    "42"::to_number() + 8
+    Output: 50
+
+9) Hash Tables (Dictionaries)
+    h = {"name": "Desmos", "ver": 1.0}
+    h["name"]
+    Output: "Desmos"
+    
+    h::keys
+    Output: ["name", "ver"]
+
+10) Booleans and Logic
+    t = true
+    f = false
+    t & f
+    Output: false
+    
+    (5 > 2) | false
+    Output: true
+
+11) Operators
+    Comparison: ==, !=, <, <=, >, >= (return Boolean)
+    Math: +, -, *, /, %, **
+    Bitwise/Logic: & (AND), | (OR), ^ (XOR)
+    Augmented assignment: +=, -=, *=, /=, %=, **=, &=, |=
+
+Commands for curious people:
+
+.tokens [-f / -t]                   - Toggles or sets tokens flag (shows scanned tokens)
+.tree [-f / -t]                     - Toggles or sets tree flag (shows parsed AST)
+.debug [-f / -t]                    - Toggles or sets both tokens and tree flags
+.always_show_last_error [-f / -t]   - Toggles or sets PRINT_EXCEPTIONS flag. When enabled,
+                                      the full traceback of the last error is printed
+                                      after each failed evaluation (useful for debugging)
+.defines                            - Shows defined identifiers and functions combined
+.idents                             - Shows defined identifiers (variables)
+.funcs                              - Shows defined functions
+.last_error                         - Shows last error traceback
+.restart | .reload                  - Restarts program
+.clr                                - Clears terminal
+.q                                  - Closes program
+.help                               - Shows help message
 """
 
 
-def __parse_main_input(text: str, *args) -> bool:
-    """Returns True if """
-    global PRINT_TOKENS, PRINT_AST
-    
-    
+class _RestartProgram(Exception):
+    """Raised to trigger a soft restart of the interpreter."""
+
+
+def _parse_toggle(flag_args: list[str], current: bool) -> tuple[bool, bool]:
+    """Parse the '-t' / '-f' suffix for a flag-toggling command.
+
+    Returns (handled, new_value):
+      * ([], current)     -> (True,  not current)   -- toggle
+      * (['-t'], current) -> (True,  True)          -- force on
+      * (['-f'], current) -> (True,  False)         -- force off
+      * anything else     -> (False, current)       -- invalid flag
+    """
+    if not flag_args:
+        return True, not current
+    if flag_args == ['-t']:
+        return True, True
+    if flag_args == ['-f']:
+        return True, False
+    return False, current
+
+
+def _format_functions(defined_functions: dict[str, tuple[list[str], Any]]) -> dict[str, str]:
+    """Formats functions dict for pretty-printing."""
+    return {
+        name: f"{name}({', '.join(params)}) = {expr}"
+        for name, (params, expr) in defined_functions.items()
+    }
+
+
+def __parse_main_input(text: str, *args: Any) -> bool:
+    """Returns True if `text` was a dot-command (whether valid or not)."""
+    global PRINT_TOKENS, PRINT_AST, PRINT_EXCEPTIONS, LAST_ERROR
+
     if text == '.clr':
-        if version_info >= (3, 14):
-            call('clear' if name == "posix" else 'cls', shell=True)
-        
-        else:
-            system('clear' if name == 'posix' else 'cls')
-        
+        call('clear' if os.name == "posix" else 'cls', shell=True)
         return True
 
-    
     flags = text.split()
-    
-    
+
     match flags[0].strip():
         case '.tokens':
-            if len(flags) == 1:
-                PRINT_TOKENS = not PRINT_TOKENS
+            ok, value = _parse_toggle(flags[1:], PRINT_TOKENS)
+            
+            if not ok:
+                print("Invalid flag")
                 return True
             
-
-            elif len(flags) == 2 and flags[1].strip() == '-t':
-                PRINT_TOKENS = True
-                return True
-            
-
-            elif len(flags) == 2 and flags[1].strip() == '-f':
-                PRINT_TOKENS = False
-                return True
-            
-
-            print("Invalid flag")
-            return False
-    
+            PRINT_TOKENS = value
+            return True
 
         case '.tree':
-            if len(flags) == 1:
-                PRINT_AST = not PRINT_AST
+            ok, value = _parse_toggle(flags[1:], PRINT_AST)
+            
+            if not ok:
+                print("Invalid flag")
                 return True
             
-
-            elif len(flags) == 2 and flags[1].strip() == '-t':
-                PRINT_AST = True
-                return True
-            
-
-            elif len(flags) == 2 and flags[1].strip() == '-f':
-                PRINT_AST = False
-                return True
-            
-
-            print("Invalid flag")
-            return False
-    
+            PRINT_AST = value
+            return True
 
         case '.debug':
-            if len(flags) == 1:
-                PRINT_TOKENS = not PRINT_TOKENS
-                PRINT_AST = not PRINT_AST
+            ok, value = _parse_toggle(flags[1:], PRINT_TOKENS)
+            
+            if not ok:
+                print("Invalid flag")
                 return True
             
+            PRINT_TOKENS = value
+            PRINT_AST = value
+            return True
 
-            if len(flags) == 2 and flags[1].strip() == '-t':
-                PRINT_TOKENS = True
-                PRINT_AST = True
+        case '.always_show_last_error':
+            ok, value = _parse_toggle(flags[1:], PRINT_EXCEPTIONS)
+            
+            if not ok:
+                print("Invalid flag")
                 return True
             
+            PRINT_EXCEPTIONS = value
+            return True
 
-            elif len(flags) == 2 and flags[1].strip() == '-f':
-                PRINT_TOKENS = False
-                PRINT_AST = False
-                return True
-            
-
-            print("Invalid flag")
-            return False
-    
-    
         case '.idents':
             if len(flags) > 1:
                 print("Invalid command")
                 return True
             
-            
-            elif args:
-                print(args[0])
-                return True
-    
-    
+            print(args[0] if args else {}, end='\n\n')
+            return True
+
         case '.funcs':
             if len(flags) > 1:
                 print("Invalid command")
                 return True
             
+            funcs = args[1] if len(args) > 1 else {}
+            funcs_str = _format_functions(funcs)
             
-            elif args:
-                print(args[1])
-                return True
-        
-        
-        case '.help':
-            print(HELP_MASSAGE)
+            print(funcs_str if funcs_str else {}, end='\n\n')
             return True
 
-        
         case '.defines':
             if len(flags) > 1:
                 print("Invalid command")
                 return True
+
+            idents = args[0] if args else {}
+            funcs  = args[1] if len(args) > 1 else {}
             
-            elif args:
-                print(args[0], args[1], sep='\n\n', end='\n\n')
+            funcs_str = _format_functions(funcs)
+            
+            print(f"Identifiers:\n{idents}\n\nFunctions:\n{funcs_str}", end='\n\n')
+            return True
+
+        case '.last_error':
+            if len(flags) > 1:
+                print("Invalid command")
                 return True
-    
-    
+            
+            print(LAST_ERROR if LAST_ERROR else "(no errors yet)", end='\n\n')
+            return True
+
+        case '.help':
+            print(HELP_MESSAGE)
+            return True
+        
+        case '.reload' | '.restart':
+            raise _RestartProgram()
+
     return False
 
 
 def main():
-    # desc: "name": "value"
-    defined_identifiers: dict[str, float] = {
-        '@pi':  3.1415926535897932384626433832795,
-        '@e':   2.7182818284590452353602874713527,
-        '@tau': 6.283185307179586476925286766559,
-    }
-    
-    
-    # desc: "name": ("params", "expr")
-    defined_functions = {}
-    
-    
-    while (src := input('> Input: ')) != '.q':
-        try:
-            if __parse_main_input(src, defined_identifiers, defined_functions):
+    global LAST_ERROR
+
+    while True:
+        defined_identifiers: dict[str, Any] = {
+            '@pi':  Number(3.1415926535897932384626433832795),
+            '@e':   Number(2.7182818284590452353602874713527),
+            '@tau': Number(6.283185307179586476925286766559),
+        }
+        defined_functions: dict[str, tuple[list[str], Any]] = {}
+        
+        call('clear' if os.name == "posix" else 'cls', shell=True)
+        print("Bobfob's Math Interpreter (type .help for info, .q to quit)")
+
+        while True:
+            try:
+                src = input('> Input: ')
+            except EOFError:
+                print()
+                return
+
+            if src.strip() == '.q':
+                return
+
+            if not src.strip():
                 continue
-            
-    
-            lexer = Lexer(src)
-            tokens = lexer.tokenize()
-            
-    
-            if PRINT_TOKENS:
-                print(f'\nTokens: [\n{',\n'.join([f"    {token}" for token in tokens])}\n]\n')
 
-    
-            parser = Parser(tokens)
-            tree = parser.parse()
-            
-    
-            if PRINT_AST:
-                print('\nTree:', tree, end='\n\n')
+            try:
+                if __parse_main_input(src, defined_identifiers, defined_functions):
+                    continue
 
-    
-            interpreter = Interpreter(tree, defined_identifiers, defined_functions)
-            evaluated = interpreter.eval()
-            print(f"> Output: {evaluated}\n")
-            
-    
-            # Updating identifiers
-            if interpreter.defined_identifiers != defined_identifiers:
-                defined_identifiers = interpreter.defined_identifiers
-            
-    
-            # Updating functions
-            if interpreter.defined_functions != defined_functions:
-                defined_functions = interpreter.defined_functions
-        
-        
-        except Exception as e:
-            print(e, end="\n\n")
+                scanner = Scanner(src)
+                scanner.scan()
+                tokens = scanner.tokens
+
+                if PRINT_TOKENS:
+                    tokens_block = ',\n'.join(f"    {t}" for t in tokens)
+                    print(f'\nTokens: [\n{tokens_block}\n]\n')
+
+                parser = Parser(tokens)
+                tree = parser.parse()
+
+                if PRINT_AST:
+                    print('\nTree:', tree, end='\n\n')
+
+                interpreter = Interpreter(tree, defined_identifiers, defined_functions)
+                evaluated = interpreter.eval()
+                print(f'> Output: {evaluated}\n')
+
+            except _RestartProgram:
+                print("\nReloading program...")
+                break
+                
+            except Exception as e:
+                LAST_ERROR = format_exc()
+
+                if PRINT_EXCEPTIONS:
+                    print(LAST_ERROR, end='\n\n')
+                else:
+                    print(f"Caught exception:\n    {e}\n")
 
 
 if __name__ == '__main__':
     main()
-    print('\n[Program finished]')
