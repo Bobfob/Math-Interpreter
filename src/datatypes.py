@@ -1,7 +1,16 @@
+import math
+
 from typing      import Any
 from dataclasses import dataclass
-from math        import floor, ceil
 from abc         import abstractmethod
+
+
+def _as_number(x) -> Number:
+    if isinstance(x, Number):
+        return x
+    if isinstance(x, (int, float)) and not isinstance(x, bool):
+        return Number(x)
+    raise TypeError("Expected Number, int or float")
 
 
 class BaseDatatype:
@@ -45,112 +54,92 @@ class Number(BaseDatatype):
         return int(self.value)
 
     def __add__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value + other.value)
 
     def __radd__(self, other: Number) -> Number:
         return self.__add__(other)
 
     def __iadd__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         self.value += other.value
         return self
 
     def __sub__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value - other.value)
 
     def __rsub__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(other.value - self.value)
 
     def __isub__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         self.value -= other.value
         return self
 
     def __mul__(self, other) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value * other.value)
 
     def __rmul__(self, other) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value * other.value)
 
     def __imul__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         self.value *= other.value
         return self
 
     def __truediv__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value / other.value)
 
     def __rtruediv__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(other.value / self.value)
 
     def __itruediv__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         self.value /= other.value
         return self
 
     def __floordiv__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value // other.value)
 
     def __rfloordiv__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(other.value // self.value)
 
     def __ifloordiv__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         self.value //= other.value
         return self
 
     def __mod__(self, other) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value % other.value)
 
     def __rmod__(self, other) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(other.value % self.value)
 
     def __imod__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         self.value %= other.value
         return self
 
     def __pow__(self, other) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(self.value ** other.value)
 
     def __rpow__(self, other) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         return Number(other.value ** self.value)
 
     def __ipow__(self, other: Number) -> Number:
-        if not isinstance(other, Number):
-            raise TypeError("Expected datatype Number")
+        other = _as_number(other)
         self.value **= other.value
         return self
 
@@ -229,10 +218,10 @@ class Number(BaseDatatype):
         return Number(round(self.value, ndigits))
 
     def __floor__(self) -> Number:
-        return Number(floor(self.value))
+        return Number(math.floor(self.value))
 
     def __ceil__(self) -> Number:
-        return Number(ceil(self.value))
+        return Number(math.ceil(self.value))
 
     def get_property(self, name: str) -> Any:
         raise AttributeError(f"{type(self).__name__} has no property named: {name}")
@@ -249,14 +238,6 @@ class Number(BaseDatatype):
                 return Point2D(Number(r[0]), Number(r[1]))
             case _:
                 raise AttributeError(f"{type(self).__name__} has no method with name: {name}")
-
-
-def _as_number(x) -> Number:
-    if isinstance(x, Number):
-        return x
-    if isinstance(x, (int, float)) and not isinstance(x, bool):
-        return Number(x)
-    raise TypeError("Expected Number, int or float")
 
 
 @dataclass(repr=False)
@@ -279,7 +260,7 @@ class Point2D(BaseDatatype):
             case 1: self.y = value
             case _: raise AttributeError("Unexpected key to assign")
 
-    def __abs__(self) -> "Point2D":
+    def __abs__(self) -> Point2D:
         return Point2D(abs(self.x), abs(self.y))
 
     def __eq__(self, value: object) -> bool:
@@ -290,57 +271,57 @@ class Point2D(BaseDatatype):
     def __neq__(self, value: object) -> bool:
         return not (self == value)
 
-    def __lt__(self, other: "Point2D") -> bool:
+    def __lt__(self, other: Point2D) -> bool:
         if not isinstance(other, Point2D):
             raise TypeError("Expected Point2D")
         return self.x < other.x and self.y < other.y
 
-    def __le__(self, other: "Point2D") -> bool:
+    def __le__(self, other: Point2D) -> bool:
         if not isinstance(other, Point2D):
             raise TypeError("Expected Point2D")
         return self.x <= other.x and self.y <= other.y
 
-    def __gt__(self, other: "Point2D") -> bool:
+    def __gt__(self, other: Point2D) -> bool:
         if not isinstance(other, Point2D):
             raise TypeError("Expected Point2D")
         return self.x > other.x and self.y > other.y
 
-    def __ge__(self, other: "Point2D") -> bool:
+    def __ge__(self, other: Point2D) -> bool:
         if not isinstance(other, Point2D):
             raise TypeError("Expected Point2D")
         return self.x >= other.x and self.y >= other.y
 
-    def __neg__(self) -> "Point2D":
+    def __neg__(self) -> Point2D:
         return Point2D(-self.x, -self.y)
 
-    def __add__(self, other: "Point2D") -> "Point2D":
+    def __add__(self, other: Point2D) -> Point2D:
         if not isinstance(other, Point2D):
             raise TypeError("Expected Point2D")
         return Point2D(self.x + other.x, self.y + other.y)
 
-    def __radd__(self, other: "Point2D") -> "Point2D":
+    def __radd__(self, other: Point2D) -> Point2D:
         return self.__add__(other)
 
-    def __sub__(self, other: "Point2D") -> "Point2D":
+    def __sub__(self, other: Point2D) -> Point2D:
         if not isinstance(other, Point2D):
             raise TypeError("Expected Point2D")
         return Point2D(self.x - other.x, self.y - other.y)
 
-    def __rsub__(self, other: "Point2D") -> "Point2D":
+    def __rsub__(self, other: Point2D) -> Point2D:
         return self.__sub__(other)
 
-    def __mul__(self, other) -> "Point2D":
+    def __mul__(self, other) -> Point2D:
         other = _as_number(other)
         return Point2D(self.x * other, self.y * other)
 
-    def __rmul__(self, other) -> "Point2D":
+    def __rmul__(self, other) -> Point2D:
         return self.__mul__(other)
 
-    def __truediv__(self, other) -> "Point2D":
+    def __truediv__(self, other) -> Point2D:
         other = _as_number(other)
         return Point2D(self.x / other, self.y / other)
 
-    def __pow__(self, other) -> "Point2D":
+    def __pow__(self, other) -> Point2D:
         other = _as_number(other)
         return Point2D(self.x ** other, self.y ** other)
 
@@ -349,6 +330,21 @@ class Point2D(BaseDatatype):
             case 'x': return self.x
             case 'y': return self.y
             case "length": return (self.x*self.x + self.y*self.y) ** 0.5
+            
+            case "angle":
+                length = (self.x*self.x + self.y*self.y) ** 0.5
+                if float(length) <= 1e-14:
+                    return Point2D(Number(0), Number(0))
+                normalized = self / length
+                
+                return Number(math.atan2(normalized.y, normalized.x))
+            
+            case "normalized":
+                length = (self.x*self.x + self.y*self.y) ** 0.5
+                if float(length) <= 1e-14:
+                    return Point2D(Number(0), Number(0))
+                return self / length
+            
             case _:
                 raise AttributeError(f"{type(self).__name__} has no property named: {name}")
 
@@ -362,35 +358,31 @@ class Point2D(BaseDatatype):
                 raise AttributeError(f"{type(self).__name__} has no settable property named: {name}")
 
     def call_method(self, name: str, args: list[Any]) -> Any:
+        def _check_arity(expected: int) -> None:
+            if len(args) != expected:
+                raise TypeError(
+                    f"{name} takes {expected} positional argument(s), but got {len(args)}"
+                )
+        
+        def _is_type(arg: Any, _type) -> None:
+            if not isinstance(arg, _type):
+                raise TypeError(f"argument must be {type(_type).__name__}")
+            return arg
+        
         match name:
             case "dot":
-                if len(args) != 1:
-                    raise TypeError(f"dot takes 1 positional argument, but got {len(args)}")
-                if not isinstance(args[0], Point2D):
-                    raise TypeError("argument must be Point2D")
-                return self.x * args[0].x + self.y * args[0].y
-
-            case "normalize":
-                if len(args) != 0:
-                    raise TypeError(f"normalize takes 0 positional arguments, but got {len(args)}")
-                length = (self.x*self.x + self.y*self.y) ** 0.5
-                if float(length) <= 1e-14:
-                    return Point2D(Number(0), Number(0))
-                return self / length
+                _check_arity(1)
+                other = _is_type(args[0], Point2D)
+                return self.x * other.x + self.y * other.y
 
             case "cross":
-                if len(args) != 1:
-                    raise TypeError(f"cross takes 1 positional argument, but got {len(args)}")
-                if not isinstance(args[0], Point2D):
-                    raise TypeError("argument must be Point2D")
-                return self.x * args[0].y - self.y * args[0].x
+                _check_arity(1)
+                other = _is_type(args[0], Point2D)
+                return self.x * other.y - self.y * other.x
 
             case "dist":
-                if len(args) != 1:
-                    raise TypeError(f"dist takes 1 positional argument, but got {len(args)}")
-                if not isinstance(args[0], Point2D):
-                    raise TypeError("argument must be Point2D")
-                d = args[0] - self
+                _check_arity(1)
+                d = _is_type(args[0], Point2D) - self
                 return (d.x*d.x + d.y*d.y) ** 0.5
 
             case _:
@@ -419,7 +411,7 @@ class Point3D(BaseDatatype):
             case 2: self.z = value
             case _: raise AttributeError("Unexpected key to assign")
 
-    def __abs__(self) -> "Point3D":
+    def __abs__(self) -> Point3D:
         return Point3D(abs(self.x), abs(self.y), abs(self.z))
 
     def __eq__(self, value: object) -> bool:
@@ -430,57 +422,57 @@ class Point3D(BaseDatatype):
     def __neq__(self, value: object) -> bool:
         return not (self == value)
 
-    def __lt__(self, other: "Point3D") -> bool:
+    def __lt__(self, other: Point3D) -> bool:
         if not isinstance(other, Point3D):
             raise TypeError("Expected Point3D")
         return self.x < other.x and self.y < other.y and self.z < other.z
 
-    def __le__(self, other: "Point3D") -> bool:
+    def __le__(self, other: Point3D) -> bool:
         if not isinstance(other, Point3D):
             raise TypeError("Expected Point3D")
         return self.x <= other.x and self.y <= other.y and self.z <= other.z
 
-    def __gt__(self, other: "Point3D") -> bool:
+    def __gt__(self, other: Point3D) -> bool:
         if not isinstance(other, Point3D):
             raise TypeError("Expected Point3D")
         return self.x > other.x and self.y > other.y and self.z > other.z
 
-    def __ge__(self, other: "Point3D") -> bool:
+    def __ge__(self, other: Point3D) -> bool:
         if not isinstance(other, Point3D):
             raise TypeError("Expected Point3D")
         return self.x >= other.x and self.y >= other.y and self.z >= other.z
 
-    def __neg__(self) -> "Point3D":
+    def __neg__(self) -> Point3D:
         return Point3D(-self.x, -self.y, -self.z)
 
-    def __add__(self, other: "Point3D") -> "Point3D":
+    def __add__(self, other: Point3D) -> Point3D:
         if not isinstance(other, Point3D):
             raise TypeError("Expected Point3D")
         return Point3D(self.x + other.x, self.y + other.y, self.z + other.z)
 
-    def __radd__(self, other: "Point3D") -> "Point3D":
+    def __radd__(self, other: Point3D) -> Point3D:
         return self.__add__(other)
 
-    def __sub__(self, other: "Point3D") -> "Point3D":
+    def __sub__(self, other: Point3D) -> Point3D:
         if not isinstance(other, Point3D):
             raise TypeError("Expected Point3D")
         return Point3D(self.x - other.x, self.y - other.y, self.z - other.z)
 
-    def __rsub__(self, other: "Point3D") -> "Point3D":
+    def __rsub__(self, other: Point3D) -> Point3D:
         return self.__sub__(other)
 
-    def __mul__(self, other) -> "Point3D":
+    def __mul__(self, other) -> Point3D:
         other = _as_number(other)
         return Point3D(self.x * other, self.y * other, self.z * other)
 
-    def __rmul__(self, other) -> "Point3D":
+    def __rmul__(self, other) -> Point3D:
         return self.__mul__(other)
 
-    def __truediv__(self, other) -> "Point3D":
+    def __truediv__(self, other) -> Point3D:
         other = _as_number(other)
         return Point3D(self.x / other, self.y / other, self.z / other)
 
-    def __pow__(self, other) -> "Point3D":
+    def __pow__(self, other) -> Point3D:
         other = _as_number(other)
         return Point3D(self.x ** other, self.y ** other, self.z ** other)
 
@@ -490,6 +482,13 @@ class Point3D(BaseDatatype):
             case 'y': return self.y
             case 'z': return self.z
             case "length": return (self.x*self.x + self.y*self.y + self.z*self.z) ** 0.5
+            
+            case "normalized":
+                length = (self.x*self.x + self.y*self.y + self.z*self.z) ** 0.5
+                if float(length) <= 1e-14:
+                    return Point3D(Number(0), Number(0), Number(0))
+                return self / length
+            
             case _:
                 raise AttributeError(f"{type(self).__name__} has no property named: {name}")
 
@@ -504,40 +503,45 @@ class Point3D(BaseDatatype):
                 raise AttributeError(f"{type(self).__name__} has no settable property named: {name}")
 
     def call_method(self, name: str, args: list[Any]) -> Any:
+        def _check_arity(expected: int) -> None:
+            if len(args) != expected:
+                raise TypeError(
+                    f"{name} takes {expected} positional argument(s), but got {len(args)}"
+                )
+        
+        def _is_type(arg: Any, _type) -> None:
+            if not isinstance(arg, _type):
+                raise TypeError(f"argument must be {type(_type).__name__}")
+            return arg
+        
         match name:
             case "dot":
-                if len(args) != 1:
-                    raise TypeError(f"dot takes 1 positional argument, but got {len(args)}")
-                if not isinstance(args[0], Point3D):
-                    raise TypeError("argument must be Point3D")
-                return self.x * args[0].x + self.y * args[0].y + self.z * args[0].z
-
-            case "normalize":
-                if len(args) != 0:
-                    raise TypeError(f"normalize takes 0 positional arguments, but got {len(args)}")
-                length = (self.x*self.x + self.y*self.y + self.z*self.z) ** 0.5
-                if float(length) <= 1e-14:
-                    return Point3D(Number(0), Number(0), Number(0))
-                return self / length
-
+                _check_arity(1)
+                other = _is_type(args[0], Point3D)
+                return self.x * other.x + self.y * other.y + self.z * other.z
+            
             case "cross":
-                if len(args) != 1:
-                    raise TypeError(f"cross takes 1 positional argument, but got {len(args)}")
-                if not isinstance(args[0], Point3D):
-                    raise TypeError("argument must be Point3D")
+                _check_arity(1)
+                other = _is_type(args[0], Point3D)
                 return Point3D(
-                    self.y * args[0].z - self.z * args[0].y,
-                    self.z * args[0].x - self.x * args[0].z,
-                    self.x * args[0].y - self.y * args[0].x
+                    self.y * other.z - self.z * other.y,
+                    self.z * other.x - self.x * other.z,
+                    self.x * other.y - self.y * other.x
                 )
 
             case "dist":
-                if len(args) != 1:
-                    raise TypeError(f"dist takes 1 positional argument, but got {len(args)}")
-                if not isinstance(args[0], Point3D):
-                    raise TypeError("argument must be Point3D")
-                d = args[0] - self
+                _check_arity(1)
+                d = _is_type(args[0], Point3D) - self
                 return (d.x*d.x + d.y*d.y + d.z*d.z) ** 0.5
+            
+            case "lerp":
+                _check_arity(2)
+                other, t = _is_type(args[0], Point3D), _is_type(args[1], Number)
+                return Point3D(
+                    self.x + (other.x - self.x) * t,
+                    self.y + (other.y - self.y) * t,
+                    self.z + (other.z - self.z) * t
+                )
 
             case _:
                 raise AttributeError(f"{type(self).__name__} has no method with name: {name}")
@@ -550,7 +554,7 @@ class Array(BaseDatatype):
     def __str__(self) -> str:
         return f"[{', '.join(map(repr, self.value))}]"
 
-    def __add__(self, other: "Array") -> "Array":
+    def __add__(self, other: Array) -> Array:
         if not isinstance(other, Array):
             raise TypeError("Expected datatype Array")
         return self._join(other)
@@ -561,7 +565,7 @@ class Array(BaseDatatype):
     def __setitem__(self, key, value):
         self.value[key] = value
 
-    def _join(self, other: "Array") -> "Array":
+    def _join(self, other: Array) -> Array:
         new_list = list(self.value)
         new_list.extend(other.value)
         return Array(new_list)
@@ -576,22 +580,29 @@ class Array(BaseDatatype):
         raise AttributeError(f"{type(self).__name__} has no settable property named: {name}")
 
     def call_method(self, name: str, args: list[Any]) -> Any:
+        def _check_arity(expected: int) -> None:
+            if len(args) != expected:
+                raise TypeError(
+                    f"{name} takes {expected} positional argument(s), but got {len(args)}"
+                )
+        
+        def _is_type(arg: Any, _type) -> None:
+            if not isinstance(arg, _type):
+                raise TypeError(f"argument must be {type(_type).__name__}")
+            return arg
+        
         match name:
             case "add":
-                if len(args) != 1:
-                    raise TypeError(f"add takes 1 positional argument, but got {len(args)}")
+                _check_arity(1)
                 self.value.append(args[0])
 
             case "extend":
-                if len(args) != 1:
-                    raise TypeError(f"extend takes 1 positional argument, but got {len(args)}")
-                if not isinstance(args[0], Array):
-                    raise TypeError("argument must be Array")
-                self.value.extend(args[0].value)
+                _check_arity(1)
+                arg = _is_type(args[0], Array)
+                self.value.extend(arg.value)
 
             case "pop":
-                if len(args) != 0:
-                    raise TypeError(f"pop takes 0 positional argument, but got {len(args)}")
+                _check_arity(0)
                 return self.value.pop()
 
             case _:
@@ -650,23 +661,23 @@ class String(BaseDatatype):
             raise TypeError("Expected datatype String")
         return self.value >= other.value
 
-    def __add__(self, other: "String") -> "String":
+    def __add__(self, other: String) -> String:
         if not isinstance(other, String):
             raise TypeError("Expected datatype String")
         return String(self.value + other.value)
 
-    def __radd__(self, other: "String") -> "String":
+    def __radd__(self, other: String) -> String:
         return self.__add__(other)
 
-    def __mul__(self, other) -> "String":
+    def __mul__(self, other) -> String:
         if not isinstance(other, Number):
             raise TypeError("Expected datatype Number")
         return String(self.value * int(other))
 
-    def __rmul__(self, other) -> "String":
+    def __rmul__(self, other) -> String:
         return self.__mul__(other)
 
-    def __getitem__(self, key) -> "String":
+    def __getitem__(self, key) -> String:
         if not isinstance(key, Number):
             raise TypeError("Expected datatype Number")
         try:
@@ -846,21 +857,24 @@ class HashTable(BaseDatatype):
         raise AttributeError(f"{type(self).__name__} has no settable property named: {name}")
 
     def call_method(self, name: str, args: list[Any]) -> Any:
+        def _check_arity(expected: int) -> None:
+            if len(args) != expected:
+                raise TypeError(
+                    f"{name} takes {expected} positional argument(s), but got {len(args)}"
+                )
+
         match name:
             case "has_key":
-                if len(args) != 1:
-                    raise TypeError(f"has_key takes 1 positional argument, but got {len(args)}")
-                return Number(1 if args[0] in self.value else 0)
+                _check_arity(1)
+                return Boolean(True if args[0] in self.value else False)
 
             case "remove":
-                if len(args) != 1:
-                    raise TypeError(f"remove takes 1 positional argument, but got {len(args)}")
+                _check_arity(1)
                 if args[0] in self.value:
                     del self.value[args[0]]
 
             case "clear":
-                if len(args) != 0:
-                    raise TypeError(f"clear takes 0 positional arguments, but got {len(args)}")
+                _check_arity(0)
                 self.value.clear()
 
             case _:

@@ -93,9 +93,16 @@ Example №2:\
 
 ## Versions
 
-## Patch 1.7.0.1 - Micro patch (current)
+## Patch 1.7.0.2 - Small patch (current)
 
-* Fixed skipped XOR augmented assign in parser
+* Added angle property for points.
+* Hash table `has_key` method now returns `Boolean` datatype.
+* Fixed `Number` datatype operations (raw ints and floats are now normally works with this datatype).
+* `normalize` method is not longer exists for points, now it's `normalized` property.
+
+## Patch 1.7.0.1 - Micro patch
+
+* Fixed skipped XOR augmented assign in parser.
 
 ## Version 1.7 - Major update
 
