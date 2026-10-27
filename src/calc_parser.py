@@ -94,7 +94,7 @@ class Parser:
                     raise _ParserError("Augmented assignment is not allowed in function declaration")
                 for arg in lvalue.args:
                     if not isinstance(arg, IdentNode):
-                        raise _ParserError("Expected parameters nor arguments at function declaration")
+                        raise _ParserError("Expected parameters not arguments in function declaration")
                 return FuncDeclaration(lvalue.name, lvalue.args, rvalue)
 
             else:
@@ -116,6 +116,8 @@ class Parser:
                     return AssignmentExpr(lvalue, BitwiseAndNode(lvalue, rvalue))
                 elif op == '|=':
                     return AssignmentExpr(lvalue, BitwiseOrNode(lvalue, rvalue))
+                elif op == '^=':
+                    return AssignmentExpr(lvalue, BitwiseXorNode(lvalue, rvalue))
 
         return lvalue
     

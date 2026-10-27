@@ -25,7 +25,7 @@ Next, after you have copied the repository, you need to run the file *main.py* u
 7) Hash Tables (Dictionaries)
 8) Boolean datatype (`true` / `false`) and logical operations
 9) Attribute and Index assignment
-10) Augmented assignments (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=`)
+10) Augmented assignments (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=`, `^=`)
 11) Bitwise operators (`&`, `|`)
 12) And others (all list you can see in help message, type *.help* while running)
 
@@ -93,7 +93,11 @@ Example №2:\
 
 ## Versions
 
-## Version 1.7 - Major update (current)
+## Patch 1.7.0.1 - Micro patch (current)
+
+* Fixed skipped XOR augmented assign in parser
+
+## Version 1.7 - Major update
 
 ### This release may have some bugs in it, feel free to write issues
 
