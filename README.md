@@ -9,7 +9,7 @@ This project was created just for fun and in order to complete the assignment in
 To use this interpreter, you first need to copy this repository to folder that you opened in terminal. To do this, go to **powershell** or **bash** (or any other terminal) and enter the command:
 
 ``` bash
-git clone "https://github.com/Bobfob/Bobfob-s-math-interpreter.git"
+git clone "https://github.com/Bobfob/Math-Interpreter.git"
 ```
 
 Next, after you have copied the repository, you need to run the file *main.py* using **Python 3.14** or higher and try to type some expressions into terminal.
