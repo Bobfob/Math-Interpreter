@@ -106,8 +106,8 @@ Example №2:\
   * All comparison operators (`>`, `<`, `==`, `!=`, `>=`, `<=`) now return a `Boolean` instead of a raw number/float/bool.
   * Boolean logic is supported using the `&` (AND) and `|` (OR) operators. For example: `true & false` results in `false`.
   * Booleans can be used as keys in Hash Tables.
-* **Added Augmented Assignments:** You can now use `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=` operators. For example: `a = 5; a += 2` results in `a` becoming `7`.
-* **Added Bitwise Operators:** Added `&` (bitwise AND), `|` (bitwise OR) and `^` (bitwise XOR) operators for Number datatypes.
+* **Added Augmented Assignments:** You can now use `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=`, `^=` operators. For example: `a = 5; a += 2` results in `a` becoming `7`.
+* **Added Bitwise Operators:** Added `&` (bitwise AND), `|` (bitwise OR) and `^` (bitwise XOR) operators for Number datatype.
 * **Fixed Local Scoping in Functions:** Variables assigned inside a function (e.g., `f(x) = (x = x + 1)`) now properly update the local frame instead of leaking to the global scope. Assignments are now allowed inside parentheses.
 * **Improved Function Printing:** The `.funcs` and `.defines` commands now print functions in a clean, human-readable format (e.g., `f(x) = (x + 1)`) instead of raw AST object representations.
 * **Added full support for Strings:**
@@ -123,7 +123,7 @@ Example №2:\
   * Supported properties: `length`, `keys`, `values`.
   * Supported methods: `has_key`, `remove`, `clear`.
   * Indexing to read or write values: `h["key"] = 10`.
-* **Scanner rewritten using Regular Expressions:** The lexer (`src/scanner.py`) was completely rewritten using Python's `re` module for faster and more robust tokenization.
+* **Scanner rewritten using Regular Expressions:** The scanner (`src/scanner.py`) was completely rewritten using Python's `re` module for faster and more robust tokenization.
 * **Attribute Assignment:** You can now assign values to object properties directly. For example, `p::x = 5` updates the X coordinate of Point2D.
 * **Fixed Data Types:** All mathematical functions now correctly return the internal `Number` datatype instead of raw Python floats. Reserved variables (`@pi`, `@e`, `@tau`) are now correctly wrapped in `Number`.
 * **Added commands:** `.reload` | `.restart` for program restarting
@@ -147,3 +147,7 @@ Example №2:\
 * Added help command
 
 ## Version 1.0 - Initial release
+
+* Added basic arithmetics
+* Added basic functions (reserved functions)
+* Added basic variables (reserved variables)
