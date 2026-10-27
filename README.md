@@ -26,7 +26,7 @@ Next, after you have copied the repository, you need to run the file *main.py* u
 8) Boolean datatype (`true` / `false`) and logical operations
 9) Attribute and Index assignment
 10) Augmented assignments (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=`, `^=`)
-11) Bitwise operators (`&`, `|`)
+11) Bitwise operators (`&`, `|`, `^`)
 12) And others (all list you can see in help message, type *.help* while running)
 
 ## Examples
